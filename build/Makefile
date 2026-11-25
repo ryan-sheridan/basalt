@@ -23,28 +23,28 @@ endif
 LFLAGS= -ffreestanding -O2 -nostdlib
 
 # Location of the files
-KER_SRC = ..
+KER_SRC = ../src/kernel
 KER_HEAD = ../include
 COMMON_SRC = ../src/common
 OBJ_DIR = objects
 KERSOURCES = $(wildcard $(KER_SRC)/*.c)
-COMMONSOURCES = $(filter-out $(KER_SRC)/%,$(wildcard $(KER_SRC)/*.c) $(COMMON_SRC)/*.c)
+COMMONSOURCES = $(wildcard $(COMMON_SRC)/*.c)
 ASMSOURCES = $(wildcard $(KER_SRC)/*.S)
 OBJECTS = $(patsubst $(KER_SRC)/%.c, $(OBJ_DIR)/%.o, $(KERSOURCES))
 OBJECTS += $(patsubst $(COMMON_SRC)/%.c, $(OBJ_DIR)/%.o, $(COMMONSOURCES))
 OBJECTS += $(patsubst $(KER_SRC)/%.S, $(OBJ_DIR)/%.o, $(ASMSOURCES))
-HEADERS = $(wildcard $(KER_HEAD)/*.h)
+HEADERS = $(wildcard $(KER_HEAD)/*.h) $(wildcard $(KER_HEAD)/*/*.h)
 
 IMG_NAME=kernel.img
 
 
 build: $(OBJECTS) $(HEADERS)
 	echo $(OBJECTS)
-	$(CC) -T ../linker.ld -o $(IMG_NAME) $(LFLAGS) $(OBJECTS)
+	$(CC) -T ../build/linker.ld -o $(IMG_NAME) $(LFLAGS) $(OBJECTS)
 
 $(OBJ_DIR)/%.o: $(KER_SRC)/%.c
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -I$(KER_SRC) -I$(KER_HEAD) -I$(COMMON_SRC) -c $< -o $@ $(CSRCFLAGS)
+	$(CC) $(CFLAGS) -I$(KER_SRC) -I$(KER_HEAD) -I$(KER_HEAD)/kernel -I$(KER_HEAD)/common -I$(COMMON_SRC) -c $< -o $@ $(CSRCFLAGS)
 
 $(OBJ_DIR)/%.o: $(KER_SRC)/%.S
 	mkdir -p $(@D)
@@ -52,7 +52,7 @@ $(OBJ_DIR)/%.o: $(KER_SRC)/%.S
 
 $(OBJ_DIR)/%.o: $(COMMON_SRC)/%.c
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -I$(KER_SRC) -I$(KER_HEAD) -I$(COMMON_SRC) -c $< -o $@ $(CSRCFLAGS)
+	$(CC) $(CFLAGS) -I$(KER_SRC) -I$(KER_HEAD) -I$(KER_HEAD)/kernel -I$(KER_HEAD)/common -I$(COMMON_SRC) -c $< -o $@ $(CSRCFLAGS)
 
 clean:
 	rm -rf $(OBJ_DIR)
