@@ -1,4 +1,5 @@
 #include <kernel/pmm.h>
+#include <kernel/uart.h>
 
 // hardcoded for raspi2b
 #define FRAME_SIZE 4096
@@ -21,8 +22,8 @@ void pmm_init(void) {
   total_frames = TOTAL_FRAMES;
   free_frames = TOTAL_FRAMES;
 
-  // 0 out everything first
-  for(uint32_t i = 0; i < total_frames; i++)
+  // 0 out everything first (total_frames BITS = total_frames/32 WORDS)
+  for(uint32_t i = 0; i < total_frames / 32; i++)
     bitmap[i] = 0;
 
   // reserved_end = 0 - __end + bitmap_bytes
@@ -37,10 +38,41 @@ void pmm_init(void) {
     mark_used(f);
 }
 
+// find the first deallocated frame and return the address
 void *pmm_alloc_frame(void) {
+  if(free_frames == 0) return 0; // out of memory, TODO: exception here
 
+  for(uint32_t i = 0; i < total_frames / 32; i++) {
+    if(bitmap[i] == 0xFFFFFFFF) continue; // skip fast
+
+    for(uint32_t bit = 0; bit < 32; bit++) { // for every bit
+      if(!(bitmap[i] & (1 << bit))) { // find first free frame
+        uint32_t frame = i * 32 + bit; // get frame number
+        mark_used(frame);
+        return (void *)(frame * FRAME_SIZE);
+      }
+    }
+  }
+  return 0;
 }
 
-void pmm_free_frame(void *address) {
+void pmm_free_frame(void *addr) {
+  uint32_t frame = (uint32_t)addr / FRAME_SIZE;
+  if(frame >= total_frames) return; // check if im crazy
+  bitmap[frame / 32] &= ~(1 << (frame % 32));
+  free_frames++;
+}
 
+// debug: print an address as 8 hex digits, e.g. 0x00012000
+// created by GLM 5.3 flash, temp for debugging
+void pmm_print_hex(void *addr) {
+  uint32_t value = (uint32_t)addr;
+
+  uart_puts("0x");
+  for(int i = 28; i >= 0; i -= 4) {
+    uint32_t nibble = (value >> i) & 0xF;      // grab one hex digit
+    char c = nibble < 10 ? '0' + nibble        // 0-9
+                         : 'a' + (nibble - 10); // a-f
+    uart_putc(c);
+  }
 }
